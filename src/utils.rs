@@ -1,11 +1,22 @@
 use std::{
+    error::Error,
     fs::File,
     io::{prelude::*, BufReader},
     path::Path,
     str::FromStr,
 };
+use err_derive::Error;
 
-pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+#[derive(Error, Debug)]
+pub enum TwoError {
+    #[error(display = "Invalid opcode (got {:?}", opcode)]
+    InvalidOpcode { opcode: i32 },
+    #[error(display = "No solutions found")]
+    NoSolutions,
+}
+
+/// Type alias for all results in aoc2019
+pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 /// Construct a non-relative path from a relative path
 ///
@@ -24,11 +35,11 @@ pub fn path(rel: &str) -> String {
 pub fn get_split<T, I>(
     split: &str,
     path: I,
-) -> std::result::Result<Vec<T>, Box<dyn std::error::Error>>
+) -> Result<Vec<T>>
 where
     T: FromStr,
     I: AsRef<Path>,
-    <T as std::str::FromStr>::Err: std::error::Error + 'static,
+    <T as std::str::FromStr>::Err: Error + 'static,
 {
     let mut vec = vec![];
     let mut f = File::open(path)?;
@@ -47,7 +58,7 @@ where
 /// path: Filepath to read contents of.
 ///
 /// returns: Vec<T> is the result of converting each line in path to T
-pub fn get_lines<T, I>(path: I) -> std::result::Result<Vec<T>, Box<dyn std::error::Error>>
+pub fn get_lines<T, I>(path: I) -> Result<Vec<T>>
 where
     T: FromStr,
     I: AsRef<Path>,
