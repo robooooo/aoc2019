@@ -6,13 +6,13 @@ use std::{
 use num_bigint::BigUint;
 use num_traits::Zero;
 
-pub fn first() -> Result<i64, Box<dyn std::error::Error>> {
+pub fn first() -> utils::Result<i64> {
     let nums: Vec<i64> = utils::get_lines(utils::path("one.txt"))?;
     let res = nums.iter().fold(0, |acc, x| acc + (x / 3 + 2));
     Ok(res)
 }
 
-pub fn second() -> Result<i64, Box<dyn std::error::Error>> {
+pub fn second() -> utils::Result<i64> {
     let nums: Vec<i64> = utils::get_lines(utils::path("one.txt"))?;
     let res = nums.iter().fold(0, |acc, x| {
         let mut x = *x;
@@ -26,7 +26,7 @@ pub fn second() -> Result<i64, Box<dyn std::error::Error>> {
     Ok(res)
 }
 
-pub fn big() -> Result<BigUint, Box<dyn std::error::Error>> {
+pub fn big() -> utils::Result<BigUint> {
     let f = File::open(utils::path("one_big.txt"))?;
     let reader = BufReader::new(f);
 

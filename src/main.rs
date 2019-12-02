@@ -1,12 +1,11 @@
-mod days;
+pub mod days;
 pub mod utils;
 
 use days::one;
+use days::two;
 
-fn main() -> Result<(), Box::<dyn std::error::Error>> {
-    println!("{}", one::first()?);
-    println!("{}", one::second()?);
-    println!("{}", one::big()?);
+fn main() -> utils::Result<()> {
+    println!("{}", two::first());
 
     Ok(())
 }
