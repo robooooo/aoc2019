@@ -3,3 +3,8 @@ name = "aoc2019"
 version = "0.1.0"
 authors = ["HTune <atune313@gmail.com>"]
 edition = "2018"
+
+[dependencies]
+num = "0.2.0"
+num-bigint = "0.2.3"
+num-traits = "0.2.10"
