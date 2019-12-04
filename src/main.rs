@@ -1,11 +1,10 @@
 pub mod days;
 pub mod utils;
 
-use days::two;
+use days::four;
 
 fn main() -> utils::Result<()> {
-    println!("{}", two::first()?);
-    println!("{}", two::second()?);
+    println!("{}", four::first()?);
 
     Ok(())
 }
