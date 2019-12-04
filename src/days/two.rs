@@ -17,7 +17,7 @@ pub fn compute(mem: &mut Vec<i32>, noun: i32, verb: i32) -> utils::Result<i32> {
         match op {
             1 => *v = x + y,
             2 => *v = x * y,
-            x => return Err(Box::new(InvalidOpcode { opcode: x })),
+            x => return Err(InvalidOpcode(x))?,
         }
         pc += 4;
     }
