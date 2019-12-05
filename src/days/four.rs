@@ -1,20 +1,8 @@
-use crate::utils;
+use crate::utils::{self, digits};
 use itertools::Itertools;
 
 const MIN: i32 = 138307;
 const MAX: i32 = 654504;
-
-/// From bottom digit up to top
-/// Where digits[0] is the lower digit
-fn digits(mut num: i32) -> Vec<i32> {
-    let mut digits = Vec::new();
-    while num > 0 {
-        digits.insert(0, num % 10);
-        num -= num % 10;
-        num /= 10;
-    }
-    digits
-}
 
 pub fn solve() -> utils::Result<(i32, i32)> {
     let mut sol_one = 0;

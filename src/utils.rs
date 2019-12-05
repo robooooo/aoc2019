@@ -93,3 +93,15 @@ where
 
     Ok(vec)
 }
+
+/// From bottom digit up to top
+/// Where digits[0] is the lower digit
+pub fn digits(mut num: i32) -> Vec<i32> {
+    let mut digits = Vec::new();
+    while num > 0 {
+        digits.insert(0, num % 10);
+        num -= num % 10;
+        num /= 10;
+    }
+    digits
+}
