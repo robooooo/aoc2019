@@ -1,4 +1,5 @@
 use crate::utils::{self, digits};
+use log::debug;
 
 pub struct Intcode {
     mem: Vec<i32>,
@@ -12,9 +13,17 @@ impl Intcode {
         Intcode { mem: mem, ip: 0, out: None, running: true }
     }
 
+    pub fn running(&self) -> bool {
+        self.running
+    }
+
+    pub fn out(&self) -> Option<i32> {
+        self.out
+    }
+
     fn address(&self, mode: AddrMode, value: i32) -> i32 {
         match mode {
-            AddrMode::Position => self.mem[value as usize],
+            AddrMode::Position => *self.mem.get(value as usize).unwrap_or(&0),
             AddrMode::Direct => value,
         }
     }
@@ -23,22 +32,24 @@ impl Intcode {
         if !self.running {
             return;
         }
+        debug!("[instr] {}", self.mem[self.ip]);
         let instr = self.mem[self.ip].into();
         self.execute(&instr);
         self.ip += instr.num_args + 1;
     }
 
     fn execute<'a>(&'a mut self, instr: &Instruction) {
-        
+
         let mut argv = Vec::with_capacity(instr.num_args);
         for i in 0..instr.num_args {
-            argv.push(*self.mem.get(self.ip + 1 + i).unwrap_or(&0));
+            argv.push(self.address(instr.addr_modes[i], self.mem[self.ip + 1 + i]));
         }
 
+        self.out = None;
         match instr.op {
             Opcode::Add => self.mem[argv[2] as usize] = argv[0] + argv[1],
             Opcode::Mul => self.mem[argv[2] as usize] = argv[0] + argv[1],
-            Opcode::Inp => self.mem[argv[2] as usize] = 0,
+            Opcode::Inp => self.mem[argv[0] as usize] = 1,
             Opcode::Out => self.out = Some(argv[0]),
             Opcode::Hlt => self.running = false,
         }
@@ -104,6 +115,7 @@ impl Opcode {
     }
 }
 
+#[derive(Copy, Clone)]
 enum AddrMode {
     Position = 0,
     Direct = 1,
