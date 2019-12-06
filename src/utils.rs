@@ -1,12 +1,12 @@
+use err_derive::Error;
 use std::{
     error::Error,
     fs::File,
     io::{prelude::*, BufReader},
+    num::ParseIntError,
     path::Path,
     str::FromStr,
-    num::ParseIntError,
 };
-use err_derive::Error;
 
 #[derive(Error, Debug)]
 pub enum TwoError {
@@ -51,10 +51,7 @@ pub fn path(rel: &str) -> String {
 /// path: Filepath to read contents of.
 ///
 /// returns: Vec<T> is the result of converting each line in path to T
-pub fn get_split<T, I>(
-    split: &str,
-    path: I,
-) -> Result<Vec<T>>
+pub fn get_split<T, I>(split: &str, path: I) -> Result<Vec<T>>
 where
     T: FromStr,
     I: AsRef<Path>,
@@ -93,6 +90,14 @@ where
 
     Ok(vec)
 }
+
+// pub fn get_string(path: impl AsRef<Path>) -> Result<String> {
+//     let mut vec = vec![];
+//     let f = File::open(path)?;
+//     let mut buf = String::new();
+//     f.read_to_string(&mut buf);
+//     Ok(buf)
+// }
 
 /// From bottom digit up to top
 /// Where digits[0] is the lower digit

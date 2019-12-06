@@ -1,20 +1,15 @@
 use crate::utils::{self, digits};
 
-// macro_rules! arg {
-//     ( $i:expr ) => {
-//         )
-//     };
-// }
-
 pub struct Intcode {
     mem: Vec<i32>,
     ip: usize,
     out: Option<i32>,
+    running: bool,
 }
 
 impl Intcode {
-    fn new(mem: Vec<i32>) -> Self {
-        Intcode { mem: mem, ip: 0, out: None }
+    pub fn new(mem: Vec<i32>) -> Self {
+        Intcode { mem: mem, ip: 0, out: None, running: true }
     }
 
     fn address(&self, mode: AddrMode, value: i32) -> i32 {
@@ -24,9 +19,16 @@ impl Intcode {
         }
     }
 
-    fn step(&mut self) {}
+    pub fn step(&mut self) {
+        if !self.running {
+            return;
+        }
+        let instr = self.mem[self.ip].into();
+        self.execute(&instr);
+        self.ip += instr.num_args + 1;
+    }
 
-    fn execute<'a>(&'a mut self, instr: Instruction) {
+    fn execute<'a>(&'a mut self, instr: &Instruction) {
         
         let mut argv = Vec::with_capacity(instr.num_args);
         for i in 0..instr.num_args {
@@ -38,7 +40,7 @@ impl Intcode {
             Opcode::Mul => self.mem[argv[2] as usize] = argv[0] + argv[1],
             Opcode::Inp => self.mem[argv[2] as usize] = 0,
             Opcode::Out => self.out = Some(argv[0]),
-            Opcode::Hlt => unimplemented!(),
+            Opcode::Hlt => self.running = false,
         }
     }
 }
