@@ -9,16 +9,17 @@ use crate::utils::{self, digits};
 pub struct Intcode {
     mem: Vec<i32>,
     ip: usize,
+    out: Option<i32>,
 }
 
 impl Intcode {
     fn new(mem: Vec<i32>) -> Self {
-        Intcode { mem: mem, ip: 0 }
+        Intcode { mem: mem, ip: 0, out: None }
     }
 
-    fn address<'a>(&'a mut self, mode: AddrMode, value: &'a mut i32) -> &'a mut i32 {
+    fn address(&self, mode: AddrMode, value: i32) -> i32 {
         match mode {
-            AddrMode::Position => &mut self.mem[*value as usize],
+            AddrMode::Position => self.mem[value as usize],
             AddrMode::Direct => value,
         }
     }
@@ -27,15 +28,24 @@ impl Intcode {
 
     fn execute<'a>(&'a mut self, instr: Instruction) {
         
+        let mut argv = Vec::with_capacity(instr.num_args);
+        for i in 0..instr.num_args {
+            argv.push(*self.mem.get(self.ip + 1 + i).unwrap_or(&0));
+        }
+
         match instr.op {
-            Opcode::Add => 
+            Opcode::Add => self.mem[argv[2] as usize] = argv[0] + argv[1],
+            Opcode::Mul => self.mem[argv[2] as usize] = argv[0] + argv[1],
+            Opcode::Inp => self.mem[argv[2] as usize] = 0,
+            Opcode::Out => self.out = Some(argv[0]),
+            Opcode::Hlt => unimplemented!(),
         }
     }
 }
 
 struct Instruction {
     addr_modes: Vec<AddrMode>,
-    num_args: i32,
+    num_args: usize,
     op: Opcode,
 }
 
@@ -62,7 +72,7 @@ impl Into<Instruction> for i32 {
 
         Instruction {
             addr_modes: addr_modes,
-            num_args: num_args as i32,
+            num_args: num_args,
             op: op,
         }
     }
