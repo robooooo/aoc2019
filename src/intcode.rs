@@ -1,7 +1,10 @@
-use crate::utils::{self, digits};
-use log::debug;
+use crate::utils::digits;
+use log::{debug, trace};
+
+static ADDR_ERR: &'static str = "addressing mode of write param to be position mode";
 
 pub struct Intcode {
+    input_req: i32,
     mem: Vec<i32>,
     ip: usize,
     out: Option<i32>,
@@ -9,8 +12,14 @@ pub struct Intcode {
 }
 
 impl Intcode {
-    pub fn new(mem: Vec<i32>) -> Self {
-        Intcode { mem: mem, ip: 0, out: None, running: true }
+    pub fn new(mem: Vec<i32>, input: i32) -> Self {
+        Intcode {
+            input_req: input,
+            mem: mem,
+            ip: 0,
+            out: None,
+            running: true,
+        }
     }
 
     pub fn running(&self) -> bool {
@@ -21,10 +30,29 @@ impl Intcode {
         self.out
     }
 
-    fn address(&self, mode: AddrMode, value: i32) -> i32 {
+    fn write(&mut self, arg: &Argument, v: i32) {
+        let addr = arg.src.expect(ADDR_ERR);
+        trace!("Wrote {} to {}", v, addr);
+        self.mem[addr] = v;
+    }
+
+    fn arg(&self, mode: AddrMode, arg_idx: usize) -> Argument {
+        trace!("Getting arg {} with addressing mode {:?}", arg_idx, mode);
+        let arg = self.address(mode, self.mem[self.ip + 1 + arg_idx]);
+        trace!("Got {} from {:?}", arg.v, arg.src);
+        arg
+    }
+
+    fn address(&self, mode: AddrMode, value: i32) -> Argument {
         match mode {
-            AddrMode::Position => *self.mem.get(value as usize).unwrap_or(&0),
-            AddrMode::Direct => value,
+            AddrMode::Position => Argument {
+                src: Some(value as usize),
+                v: *self.mem.get(value as usize).unwrap_or(&0),
+            },
+            AddrMode::Direct => Argument {
+                src: None,
+                v: value,
+            },
         }
     }
 
@@ -32,26 +60,38 @@ impl Intcode {
         if !self.running {
             return;
         }
-        debug!("[instr] {}", self.mem[self.ip]);
         let instr = self.mem[self.ip].into();
+        debug!("IP is {}, points to {}", self.ip, self.mem[self.ip]);
         self.execute(&instr);
         self.ip += instr.num_args + 1;
     }
 
     fn execute<'a>(&'a mut self, instr: &Instruction) {
-
         let mut argv = Vec::with_capacity(instr.num_args);
+        trace!("Performing instruction {:?}", instr.op);
         for i in 0..instr.num_args {
-            argv.push(self.address(instr.addr_modes[i], self.mem[self.ip + 1 + i]));
+            argv.push(self.arg(instr.addr_modes[i], i));
         }
 
         self.out = None;
         match instr.op {
-            Opcode::Add => self.mem[argv[2] as usize] = argv[0] + argv[1],
-            Opcode::Mul => self.mem[argv[2] as usize] = argv[0] + argv[1],
-            Opcode::Inp => self.mem[argv[0] as usize] = 1,
-            Opcode::Out => self.out = Some(argv[0]),
+            Opcode::Add => self.write(&argv[2], argv[0].v + argv[1].v),
+            Opcode::Mul => self.write(&argv[2], argv[0].v * argv[1].v),
+            Opcode::Inp => self.write(&argv[0], self.input_req),
+            Opcode::Out => self.out = Some(argv[0].v),
             Opcode::Hlt => self.running = false,
+            Opcode::Jit => {
+                if argv[0].v != 0 {
+                    self.ip = argv[1].v as usize - instr.num_args - 1
+                }
+            }
+            Opcode::Jif => {
+                if argv[0].v == 0 {
+                    self.ip = argv[1].v as usize - instr.num_args - 1
+                }
+            }
+            Opcode::Clt => self.write(&argv[2], (argv[0].v < argv[1].v) as i32),
+            Opcode::Ceq => self.write(&argv[2], (argv[0].v == argv[1].v) as i32),
         }
     }
 }
@@ -66,8 +106,8 @@ impl Into<Instruction> for i32 {
     fn into(self) -> Instruction {
         let op_num = self % 100;
         let op = Opcode::maybe_new(op_num).expect("Known opcode");
-        let rem = (self / 100) - op_num;
-        let digits = digits(rem);
+        let rem = (self - op_num) / 100;
+        let digits: Vec<_> = digits(rem).into_iter().rev().collect();
 
         let num_args = match op {
             Opcode::Add => 3,
@@ -75,6 +115,10 @@ impl Into<Instruction> for i32 {
             Opcode::Inp => 1,
             Opcode::Out => 1,
             Opcode::Hlt => 0,
+            Opcode::Jit => 2,
+            Opcode::Jif => 2,
+            Opcode::Clt => 3,
+            Opcode::Ceq => 3,
         };
 
         let mut addr_modes = Vec::new();
@@ -91,11 +135,16 @@ impl Into<Instruction> for i32 {
     }
 }
 
+#[derive(Debug)]
 enum Opcode {
     Add = 1,
     Mul = 2,
     Inp = 3,
     Out = 4,
+    Jit = 5,
+    Jif = 6,
+    Clt = 7,
+    Ceq = 8,
     Hlt = 99,
 }
 
@@ -109,13 +158,17 @@ impl Opcode {
             2 => Some(Mul),
             3 => Some(Inp),
             4 => Some(Out),
+            5 => Some(Jit),
+            6 => Some(Jif),
+            7 => Some(Clt),
+            8 => Some(Ceq),
             99 => Some(Hlt),
             _ => None,
         }
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 enum AddrMode {
     Position = 0,
     Direct = 1,
@@ -131,4 +184,10 @@ impl AddrMode {
             _ => None,
         }
     }
+}
+
+#[derive(Debug)]
+struct Argument {
+    src: Option<usize>,
+    v: i32,
 }

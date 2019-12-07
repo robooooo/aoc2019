@@ -2,11 +2,14 @@ pub mod days;
 pub mod utils;
 pub mod intcode;
 
-use days::five;
+use days::six;
 
 fn main() -> utils::Result<()> {
-    let first = five::first()?;
+    //stderrlog::new().verbosity(0).init()?;
+
+    let (first, second) = six::solve()?;
     println!("{}", first);
+    println!("{}", second);
 
     Ok(())
 }

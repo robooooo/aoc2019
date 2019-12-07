@@ -6,14 +6,14 @@ use std::{
 use num_bigint::BigUint;
 use num_traits::Zero;
 
-pub fn first() -> utils::Result<i64> {
-    let nums: Vec<i64> = utils::get_lines(utils::path("one.txt"))?;
+pub fn first() -> utils::Result<i32> {
+    let nums: Vec<i32> = utils::get_lines(utils::path("one.txt"))?;
     let res = nums.iter().fold(0, |acc, x| acc + (x / 3 + 2));
     Ok(res)
 }
 
-pub fn second() -> utils::Result<i64> {
-    let nums: Vec<i64> = utils::get_lines(utils::path("one.txt"))?;
+pub fn second() -> utils::Result<i32> {
+    let nums: Vec<i32> = utils::get_lines(utils::path("one.txt"))?;
     let res = nums.iter().fold(0, |acc, x| {
         let mut x = *x;
         let mut sum = 0;
