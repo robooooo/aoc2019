@@ -1,14 +1,5 @@
 use crate::intcode::{error::IntcodeErr, structs::*};
 
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub enum State {
-    Running,
-    Waiting,
-    Output(i32),
-    Halted,
-    Error(IntcodeErr),
-}
-
 /// Evaluate an intcode instance with all inputs as `inp`
 /// Returns `Some(out)` on the first output
 /// Will return `None` if it stops running before an output is produced
@@ -40,6 +31,15 @@ pub fn eval_args(ic: &mut Intcode, argv: &Vec<i32>) -> Option<i32> {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum State {
+    Running,
+    Waiting,
+    Output(i32),
+    Halted,
+    Error(IntcodeErr),
+}
+
 pub struct Intcode {
     mem: Vec<i32>,
     ip: usize,
@@ -50,7 +50,7 @@ pub struct Intcode {
 impl Intcode {
     pub fn new(mem: Vec<i32>) -> Self {
         Intcode {
-            mem: mem,
+            mem,
             ip: 0,
             state: State::Running,
             next_in: None,
@@ -61,37 +61,12 @@ impl Intcode {
         self.state
     }
 
+    pub fn mem(&self) -> &[i32] {
+        &self.mem
+    }
+
     pub fn input(&mut self, input: i32) {
         self.next_in = Some(input);
-    }
-
-    fn write(&mut self, arg: &Argument, v: i32) {
-        let addr = match arg.src {
-            Some(addr) => addr,
-            None => {
-                self.state = State::Error(IntcodeErr::WriteDirect);
-                return;
-            }
-        };
-        self.mem[addr] = v;
-    }
-
-    fn arg(&self, mode: AddrMode, arg_idx: usize) -> Argument {
-        let arg = self.address(mode, self.mem[self.ip + 1 + arg_idx]);
-        arg
-    }
-
-    fn address(&self, mode: AddrMode, value: i32) -> Argument {
-        match mode {
-            AddrMode::Position => Argument {
-                src: Some(value as usize),
-                v: *self.mem.get(value as usize).unwrap_or(&0),
-            },
-            AddrMode::Direct => Argument {
-                src: None,
-                v: value,
-            },
-        }
     }
 
     pub fn step(&mut self) -> State {
@@ -108,6 +83,44 @@ impl Intcode {
             self.ip += instr.num_args + 1;
         }
         return self.state;
+    }
+
+    fn write(&mut self, arg: &Argument, v: i32) {
+        let addr = match arg.src {
+            Some(addr) => addr,
+            None => {
+                self.state = State::Error(IntcodeErr::WriteDirect);
+                return;
+            }
+        };
+        match self.mem.get_mut(addr) {
+            Some(loc) => *loc = v,
+            None => self.state = State::Error(IntcodeErr::WriteOob),
+        };
+    }
+
+    fn arg(&mut self, mode: AddrMode, arg_idx: usize) -> Argument {
+        let arg = self.address(mode, self.mem[self.ip + 1 + arg_idx]);
+        arg
+    }
+
+    fn address(&mut self, mode: AddrMode, value: i32) -> Argument {
+        match mode {
+            AddrMode::Position => Argument {
+                src: Some(value as usize),
+                v: match self.mem.get(value as usize) {
+                    Some(v) => *v,
+                    None => {
+                        self.state = State::Error(IntcodeErr::ReadOob);
+                        0
+                    }
+                },
+            },
+            AddrMode::Direct => Argument {
+                src: None,
+                v: value,
+            },
+        }
     }
 
     fn execute<'a>(&'a mut self, instr: &Instruction) {
