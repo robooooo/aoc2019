@@ -1,6 +1,6 @@
-use crate::utils::{
-    self,
-    ThreeError::{self, *},
+use crate::{
+    error::ThreeError::{self, *},
+    utils,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -19,7 +19,7 @@ struct Movement {
     distance: i32,
 }
 
-impl FromStr for Movement {         
+impl FromStr for Movement {
     type Err = ThreeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use Direction::*;

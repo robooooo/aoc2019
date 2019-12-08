@@ -1,16 +1,17 @@
 pub mod days;
+pub mod error;
 pub mod utils;
 pub mod intcode;
 
-use days::seven;
+use days::eight;
 
 fn main() -> utils::Result<()> {
     //stderrlog::new().verbosity(0).init()?;
 
-    let first = seven::first()?;
+    let first = eight::first()?;
     println!("{}", first);
-    let second = seven::second()?;
+    let second = eight::second()?;
     println!("{}", second);
 
     Ok(())
-}
+}   

@@ -1,38 +1,10 @@
-use err_derive::Error;
 use std::{
     error::Error,
     fs::File,
     io::{prelude::*, BufReader},
-    num::ParseIntError,
     path::Path,
     str::FromStr,
 };
-
-#[derive(Error, Debug)]
-pub enum TwoError {
-    #[error(display = "Invalid opcode (got {:?})", _0)]
-    InvalidOpcode(i32),
-    #[error(display = "No solutions found")]
-    NoSolutions,
-}
-
-#[derive(Error, Debug)]
-pub enum ThreeError {
-    #[error(display = "Invalid direction (got {:?})", _0)]
-    InvalidDirection(char),
-    #[error(display = "Got an empty instruction while parsing")]
-    EmptyDirection,
-    #[error(display = "Error parsing int: {}", _0)]
-    ParseError(ParseIntError),
-    #[error(display = "No solutions found")]
-    NoSolutions,
-}
-
-impl From<ParseIntError> for ThreeError {
-    fn from(error: ParseIntError) -> Self {
-        ThreeError::ParseError(error)
-    }
-}
 
 /// Type alias for all results in aoc2019
 pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
@@ -89,6 +61,28 @@ where
     }
 
     Ok(vec)
+}
+
+/// Attempt to interpret file as many characters of i32.
+///
+/// path: Filepath to read contents of.eight
+///
+/// [return]: Vec<T> is the result of converting each character in path to i32
+pub fn get_char_nums<I>(path: I) -> Result<Vec<i32>>
+where
+    I: AsRef<Path>,
+{
+    let mut f = File::open(path)?;
+    let mut text = String::new();
+    f.read_to_string(&mut text)?;
+
+    let res = text
+        .chars()
+        .filter(|c| c.is_numeric())
+        .map(|c| c as u8 - b'0')
+        .map(|c| c as i32)
+        .collect();
+    Ok(res)
 }
 
 // pub fn get_string(path: impl AsRef<Path>) -> Result<String> {

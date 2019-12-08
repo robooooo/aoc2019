@@ -1,4 +1,7 @@
-use crate::utils::{self, TwoError::*};
+use crate::{
+    error::TwoError::*,
+    utils,
+};
 
 pub fn compute(mem: &mut Vec<i32>, noun: i32, verb: i32) -> utils::Result<i32> {
     mem[1] = noun;
@@ -45,7 +48,7 @@ pub fn second() -> utils::Result<i32> {
         for verb in 0..100 {
             let ret = compute(&mut mem.clone(), noun, verb)?;
             if ret == 19690720 {
-                return Ok(100 * noun + verb)
+                return Ok(100 * noun + verb);
             }
         }
     }
