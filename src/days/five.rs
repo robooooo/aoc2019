@@ -1,15 +1,19 @@
-use crate::{intcode::Intcode, utils};
+use crate::{
+    intcode::{Intcode, interpreter::State},
+    utils,
+};
 
 pub fn first() -> utils::Result<String> {
-
     let input = utils::get_split(",", utils::path("five.txt"))?;
     let mut res = String::new();
-    let mut cpu = Intcode::new(input, 1);
+    let mut cpu = Intcode::new(input);
 
-    while cpu.running() {
-        cpu.step();
-        if let Some(out) = cpu.out() {
-            res.push_str(&format!("{} ", out));
+    loop {
+        match cpu.step() {
+            State::Running => continue,
+            State::Output(out) => res.push_str(&format!("{} ", out)),
+            State::Waiting => cpu.input(1),
+            _ => break,
         }
     }
 
@@ -17,15 +21,16 @@ pub fn first() -> utils::Result<String> {
 }
 
 pub fn second() -> utils::Result<String> {
-
     let input = utils::get_split(",", utils::path("five.txt"))?;
     let mut res = String::new();
-    let mut cpu = Intcode::new(input, 5);
+    let mut cpu = Intcode::new(input);
 
-    while cpu.running() {
-        cpu.step();
-        if let Some(out) = cpu.out() {
-            res.push_str(&format!("{} ", out));
+    loop {
+        match cpu.step() {
+            State::Running => continue,
+            State::Output(out) => res.push_str(&format!("{} ", out)),
+            State::Waiting => cpu.input(5),
+            _ => break,
         }
     }
 
