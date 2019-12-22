@@ -3,14 +3,14 @@ pub mod error;
 pub mod utils;
 pub mod intcode;
 
-use days::eight;
+use days::twenty_two as day;
 
 fn main() -> utils::Result<()> {
     //stderrlog::new().verbosity(0).init()?;
 
-    let first = eight::first()?;
+    let first = day::first()?;
     println!("{}", first);
-    let second = eight::second()?;
+    let second = day::second()?;
     println!("{}", second);
 
     Ok(())

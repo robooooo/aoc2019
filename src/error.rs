@@ -32,5 +32,29 @@ pub enum EightError {
     #[error(display = "No solutions found")]
     NoSolutions,
     #[error(display = "Unexpected digit encountered in input")]
-    UnexpectedDigit
+    UnexpectedDigit,
+}
+
+#[derive(Error, Debug)]
+pub enum TwentyTwoFromStrErr {
+    #[error(display = "Invalid technique")]
+    InvalidTechnique,
+    #[error(display = "Range error")]
+    RangeError,
+    #[error(display = "Parse error: {:?}", _0)]
+    ParseError(ParseIntError),
+}
+
+impl From<ParseIntError> for TwentyTwoFromStrErr {
+    fn from(e: ParseIntError) -> Self {
+        TwentyTwoFromStrErr::ParseError(e)
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum TwentyTwoError {
+    #[error(display = "No solutions")]
+    NoSolutions,
+    #[error(display = "Parse error: {:?}", _0)]
+    ParseError(TwentyTwoFromStrErr),
 }

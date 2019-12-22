@@ -21,7 +21,7 @@ pub fn first() -> utils::Result<i32> {
         .max()
         .unwrap_or(0);
 
-    Ok(sol)
+    Ok(sol as i32)
 }
 
 pub fn second() -> utils::Result<i32> {
@@ -54,5 +54,5 @@ pub fn second() -> utils::Result<i32> {
         .max()
         .unwrap_or(0);
 
-    Ok(sol)
+    Ok(sol as i32)
 }

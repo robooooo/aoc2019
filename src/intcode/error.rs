@@ -4,8 +4,10 @@ use err_derive::Error;
 pub enum IntcodeErr {
     #[error(display = "Interpreter tried to write to an argument in direct addressing mode")]
     WriteDirect,
-    #[error(display = "Out of bounds read")]
-    ReadOob,
-    #[error(display = "Out of bounds write")]
-    WriteOob,
+    #[error(display = "Attempted to access a negative address")]
+    NegativeAccess,
+    #[error(display = "Unknown instruction")]
+    UnknownInstruction,
+    #[error(display = "Unknown addressing mode")]
+    UnknownMode,
 }

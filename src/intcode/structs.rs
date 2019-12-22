@@ -1,19 +1,23 @@
-use crate::utils::digits;
+use crate::{intcode::error::IntcodeErr, utils::digits};
+use std::usize;
 
 pub(super) struct Instruction {
     pub(super) addr_modes: Vec<AddrMode>,
-    pub(super) num_args: usize,
+    pub(super) num_args: i128,
     pub(super) op: Opcode,
 }
 
-impl Into<Instruction> for i32 {
-    fn into(self) -> Instruction {
-        let op_num = self % 100;
-        let op = Opcode::maybe_new(op_num).expect("Known opcode");
-        let rem = (self - op_num) / 100;
-        let digits: Vec<_> = digits(rem).into_iter().rev().collect();
+impl Instruction {
+    pub fn maybe_new(n: i128) -> Result<Self, IntcodeErr> {
+        let op_num = n % 100;
+        let op = match Opcode::maybe_new(op_num) {
+            Some(op) => op,
+            None => return Err(IntcodeErr::UnknownInstruction),
+        };
+        let rem = (n - op_num) / 100;
+        let digits: Vec<_> = digits(rem as i32).into_iter().rev().collect();
 
-        let num_args = match op {
+        let num_args: i128 = match op {
             Opcode::Add => 3,
             Opcode::Mul => 3,
             Opcode::Inp => 1,
@@ -23,19 +27,25 @@ impl Into<Instruction> for i32 {
             Opcode::Jif => 2,
             Opcode::Clt => 3,
             Opcode::Ceq => 3,
+            Opcode::Arb => 1,
         };
 
         let mut addr_modes = Vec::new();
         for i in 0..num_args {
-            addr_modes
-                .push(AddrMode::maybe_new(*digits.get(i).unwrap_or(&0)).expect("Valid opcode"));
+            assert!(i <= usize::MAX as i128);
+            let mode = match AddrMode::maybe_new(*digits.get(i as usize).unwrap_or(&0) as i128) {
+                Some(mode) => mode,
+                None => return Err(IntcodeErr::UnknownMode),
+            };
+            addr_modes.push(mode);
         }
 
-        Instruction {
+        let res = Instruction {
             addr_modes: addr_modes,
             num_args: num_args,
             op: op,
-        }
+        };
+        Ok(res)
     }
 }
 
@@ -49,12 +59,13 @@ pub(super) enum Opcode {
     Jif = 6,
     Clt = 7,
     Ceq = 8,
+    Arb = 9,
     Hlt = 99,
 }
 
 impl Opcode {
     // Should be a better way to do this
-    fn maybe_new(n: i32) -> Option<Opcode> {
+    fn maybe_new(n: i128) -> Option<Opcode> {
         use Opcode::*;
 
         match n {
@@ -66,6 +77,7 @@ impl Opcode {
             6 => Some(Jif),
             7 => Some(Clt),
             8 => Some(Ceq),
+            9 => Some(Arb),
             99 => Some(Hlt),
             _ => None,
         }
@@ -76,15 +88,17 @@ impl Opcode {
 pub(super) enum AddrMode {
     Position = 0,
     Direct = 1,
+    Relative = 2,
 }
 
 impl AddrMode {
-    fn maybe_new(n: i32) -> Option<AddrMode> {
+    fn maybe_new(n: i128) -> Option<AddrMode> {
         use AddrMode::*;
 
         match n {
             0 => Some(Position),
             1 => Some(Direct),
+            2 => Some(Relative),
             _ => None,
         }
     }
@@ -92,6 +106,6 @@ impl AddrMode {
 
 #[derive(Debug)]
 pub(super) struct Argument {
-    pub(super) src: Option<usize>,
-    pub(super) v: i32,
+    pub(super) src: Option<i128>,
+    pub(super) v: i128,
 }
