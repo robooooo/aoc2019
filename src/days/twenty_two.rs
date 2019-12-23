@@ -71,16 +71,6 @@ pub fn first() -> utils::Result<usize> {
 
 pub fn second() -> utils::Result<usize> {
     let input: Vec<Technique> = utils::get_lines(utils::path("twenty_two.txt"))?;
-    let len = 101741582076661 - 1;
-    let mut idx = 2020;
-    let r: Range<usize> = 0..101741582076661;
-    for _ in r {
-        match line {
-            Technique::DealNew => idx = len - idx,
-            Technique::CutBottom(n) => idx = (idx + n) % len,
-        }
-    }
 
-    //Result: 9 2 5 8 1 4 7 0 3 6
-    Ok(idx)
+    Ok(0)
 }
