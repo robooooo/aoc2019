@@ -10,4 +10,7 @@ pub enum IntcodeErr {
     UnknownInstruction,
     #[error(display = "Unknown addressing mode")]
     UnknownMode,
+    #[error(display = "An eval- function ran out of arguments")]
+    EvalNoArgs,
 }
+

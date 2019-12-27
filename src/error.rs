@@ -58,3 +58,9 @@ pub enum TwentyTwoError {
     #[error(display = "Parse error: {:?}", _0)]
     ParseError(TwentyTwoFromStrErr),
 }
+
+#[derive(Error, Debug)]
+pub enum TwentyFourError {
+    #[error(display = "Pattern did not match a cell")]
+    ParseError,
+}

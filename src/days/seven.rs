@@ -1,4 +1,4 @@
-use crate::intcode::{self, Intcode, interpreter::State};
+use crate::intcode::{self, Intcode, interpreter::{State, eval_args}};
 use crate::utils;
 use itertools::Itertools;
 
@@ -11,9 +11,9 @@ pub fn first() -> utils::Result<i32> {
             let mut last = 0;
             for i in 0..5 {
                 let mut curr = Intcode::new(inp.clone());
-                last = match intcode::eval_args(&mut curr, &vec![seq[i], last]) {
-                    Some(res) => res,
-                    None => return None,
+                last = match eval_args(&mut curr, vec![seq[i], last].into_iter()) {
+                    Ok(res) => res,
+                    Err(_) => return None,
                 }
             }
             Some(last)

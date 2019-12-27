@@ -1,14 +1,17 @@
-use crate::{intcode::error::IntcodeErr, utils::digits};
-use std::usize;
+use crate::{
+    intcode::{self, error::IntcodeErr, interpreter::Int},
+    utils::digits,
+};
+use std::{ops::Deref, usize};
 
 pub(super) struct Instruction {
     pub(super) addr_modes: Vec<AddrMode>,
-    pub(super) num_args: i128,
+    pub(super) num_args: Int,
     pub(super) op: Opcode,
 }
 
 impl Instruction {
-    pub fn maybe_new(n: i128) -> Result<Self, IntcodeErr> {
+    pub fn maybe_new(n: Int) -> Result<Self, IntcodeErr> {
         let op_num = n % 100;
         let op = match Opcode::maybe_new(op_num) {
             Some(op) => op,
@@ -17,7 +20,7 @@ impl Instruction {
         let rem = (n - op_num) / 100;
         let digits: Vec<_> = digits(rem as i32).into_iter().rev().collect();
 
-        let num_args: i128 = match op {
+        let num_args: Int = match op {
             Opcode::Add => 3,
             Opcode::Mul => 3,
             Opcode::Inp => 1,
@@ -32,8 +35,8 @@ impl Instruction {
 
         let mut addr_modes = Vec::new();
         for i in 0..num_args {
-            assert!(i <= usize::MAX as i128);
-            let mode = match AddrMode::maybe_new(*digits.get(i as usize).unwrap_or(&0) as i128) {
+            assert!(i <= usize::MAX as Int);
+            let mode = match AddrMode::maybe_new(*digits.get(i as usize).unwrap_or(&0) as Int) {
                 Some(mode) => mode,
                 None => return Err(IntcodeErr::UnknownMode),
             };
@@ -65,7 +68,7 @@ pub(super) enum Opcode {
 
 impl Opcode {
     // Should be a better way to do this
-    fn maybe_new(n: i128) -> Option<Opcode> {
+    fn maybe_new(n: Int) -> Option<Opcode> {
         use Opcode::*;
 
         match n {
@@ -84,7 +87,7 @@ impl Opcode {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub(super) enum AddrMode {
     Position = 0,
     Direct = 1,
@@ -92,7 +95,7 @@ pub(super) enum AddrMode {
 }
 
 impl AddrMode {
-    fn maybe_new(n: i128) -> Option<AddrMode> {
+    fn maybe_new(n: Int) -> Option<AddrMode> {
         use AddrMode::*;
 
         match n {
@@ -104,8 +107,39 @@ impl AddrMode {
     }
 }
 
-#[derive(Debug)]
-pub(super) struct Argument {
-    pub(super) src: Option<i128>,
-    pub(super) v: i128,
+#[derive(Debug, Eq, PartialEq)]
+pub(super) struct Argument<'a> {
+    reference: Option<&'a mut Int>,
+    value: Int,
+}
+
+impl<'a> Argument<'a> {
+    pub fn new(addr: &'a mut Int) -> Self {
+        Argument {
+            reference: Some(addr),
+            value: *addr,
+        }
+    }
+
+    pub fn with_value(value: Int) -> Self {
+        Argument {
+            reference: None,
+            value: value,
+        }
+    }
+
+    pub fn reference(&self) -> Option<&'a mut Int> {
+        self.reference
+    }
+
+    pub fn value(&self) -> Int {
+        self.value
+    }
+}
+
+impl<'a> Deref for Argument<'a> {
+    type Target = Int;
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
 }

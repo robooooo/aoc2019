@@ -9,3 +9,4 @@ pub mod eight;
 pub mod nine;
 
 pub mod twenty_two;
+pub mod twenty_four;

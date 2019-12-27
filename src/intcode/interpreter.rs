@@ -1,70 +1,77 @@
-use crate::intcode::{error::IntcodeErr, structs::*};
-use std::{usize, i128};
+#[macro_use]
+use crate::{
+    intcode::{error::IntcodeErr, structs::*},
+};
+use std::{i128, iter, usize};
 
-/// Evaluate an intcode instance with all inputs as `inp`
-/// Returns `Some(out)` on the first output
-/// Will return `None` if it stops running before an output is produced
-pub fn eval(ic: &mut Intcode, inp: i128) -> Option<i128> {
-    loop {
-        match ic.step() {
-            State::Running => continue,
-            State::Output(out) => return Some(out),
-            State::Waiting => ic.input(inp),
-            _ => return None,
-        }
-    }
-}
+pub type Int = i128;
 
-/// Like eval but uses an argument vector instead of a single arg
-/// Will return `None` if the interpreter asks for too many inputs
-pub fn eval_args(ic: &mut Intcode, argv: &Vec<i128>) -> Option<i128> {
-    let mut inps = argv.iter();
-    loop {
-        match ic.step() {
-            State::Running => continue,
-            State::Output(out) => return Some(out),
-            State::Waiting => match inps.next() {
-                Some(&inp) => ic.input(inp),
-                None => return None,
-            },
-            _ => return None,
-        }
-    }
-}
-
-pub fn eval_all(ic: &mut Intcode, arg: i128) -> Option<Vec<i128>> {
+/// Fully evaluate the intcode instance `ic` to completion
+/// Stops with an `Err(IntcodeErr::EvalNoArgs)` when it can't provide an argument
+/// Stops with an `Err(E)` when the interpreter errors with code E
+/// Otherwise returns a Vec<Int> of all the outputs before halting
+pub fn eval<I>(ic: &mut Intcode, mut inp: I) -> Result<Vec<Int>, IntcodeErr>
+where
+    I: Iterator<Item = Int>,
+{
     let mut out = Vec::new();
     loop {
         match ic.step() {
             State::Running => continue,
-            State::Output(x) => out.push(x),
-            State::Waiting => ic.input(arg),
+            State::Output(o) => out.push(o),
+            State::Waiting => ic.input(inp.next().ok_or(IntcodeErr::EvalNoArgs)?),
             State::Halted => break,
-            _ => return None,
+            State::Error(e) => return Err(e),
         }
     }
-    Some(out)
+    Ok(out)
+}
+
+/// Evaluate an intcode instance with all inputs as `inp`
+/// Returns `Some(out)` on the first output
+/// Will return `None` if it stops running before an output is produced
+pub fn eval_once(ic: &mut Intcode, inp: Int) -> Result<Int, IntcodeErr> {
+    match eval(ic, iter::once(inp)).map(|v| v.get(0).copied()) {
+        Ok(None) => Err(IntcodeErr::EvalNoArgs),
+        Ok(Some(i)) => Ok(i),
+        Err(e) => Err(e),
+    }
+}
+
+/// Like eval_once but uses an argument vector instead of a single arg
+/// Will return `None` if the interpreter asks for too many inputs
+pub fn eval_args(ic: &mut Intcode, argv: impl Iterator<Item = Int>) -> Result<Int, IntcodeErr> {
+    match eval(ic, argv).map(|v| v.get(0).copied()) {
+        Ok(None) => Err(IntcodeErr::EvalNoArgs),
+        Ok(Some(i)) => Ok(i),
+        Err(e) => Err(e),
+    }
+}
+
+/// Like eval_once but returns
+pub fn eval_all(ic: &mut Intcode, arg: Int) -> Result<Vec<Int>, IntcodeErr> {
+    eval(ic, iter::once(arg))
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum State {
     Running,
     Waiting,
-    Output(i128),
+    Output(Int),
     Halted,
     Error(IntcodeErr),
 }
 
 pub struct Intcode {
-    mem: Vec<i128>,
-    ip: i128,
-    base: i128,
+    mem: Vec<Int>,
+    ip: Int,
+    base: Int,
     state: State,
-    next_in: Option<i128>,
+    next_in: Option<Int>,
 }
 
 impl Intcode {
-    pub fn new(mem: Vec<i128>) -> Self {
+    pub fn new(mem: Vec<Int>) -> Self {
         Intcode {
             mem,
             ip: 0,
@@ -78,11 +85,11 @@ impl Intcode {
         self.state
     }
 
-    pub fn mem(&self) -> &[i128] {
+    pub fn mem(&self) -> &[Int] {
         &self.mem
     }
 
-    pub fn input(&mut self, input: i128) {
+    pub fn input(&mut self, input: Int) {
         self.next_in = Some(input);
     }
 
@@ -93,7 +100,7 @@ impl Intcode {
             return self.state;
         }
 
-        assert!(self.ip <= usize::MAX as i128);
+        assert!(self.ip <= usize::MAX as Int);
         let instr = match Instruction::maybe_new(self.mem[self.ip as usize]) {
             Ok(instr) => instr,
             Err(err) => {
@@ -103,100 +110,113 @@ impl Intcode {
         };
         self.execute(&instr);
 
-
         if self.state != State::Waiting {
-            self.ip += (instr.num_args + 1) as i128;
+            self.ip += (instr.num_args + 1) as Int;
         }
         return self.state;
     }
 
-    fn get(&mut self, addr: i128) -> &mut i128 {
+    fn get(&mut self, addr: Int) -> Option<&mut Int> {
         let len = self.mem.len();
-        assert!(addr <= usize::MAX as i128);
+        assert!(addr <= usize::MAX as Int);
         let addr = addr as usize;
+
         if len < addr {
-            self.mem.reserve(addr - len + 1);
-            for _ in len..=addr {
-                self.mem.push(0);
-            }
+            self.mem.extend(iter::repeat(0).take(addr - len + 1));
         }
 
-        self.mem.get_mut(addr).unwrap()
+        match self.mem.get_mut(addr) {
+            opt @ Some(_) => opt,
+            None => {
+                self.state = State::Error(IntcodeErr::NegativeAccess);
+                None
+            }
+        }
     }
 
-    fn write_arg(&mut self, arg: &Argument, v: i128) {
-        let addr = match arg.src {
-            Some(addr) => addr,
-            None => {
-                self.state = State::Error(IntcodeErr::WriteDirect);
-                return;
+    fn arg(&mut self, mode: AddrMode, idx: Int) -> Option<Argument> {
+        macro_rules! get {
+            ( $arg:expr ) => {
+                match self.get($arg) {
+                    Some(arg) => arg,
+                    None => return None,
+                }
+            };
+        }
+
+        let idx = match mode {
+            AddrMode::Position => idx,
+            AddrMode::Relative => self.base + idx,
+            AddrMode::Direct => {
+                return Some(Argument {
+                    reference: None,
+                    value: idx,
+                })
             }
         };
-        *self.get(addr) = v;
-    }
+        let val = *get!(idx);
 
-    fn arg(&mut self, mode: AddrMode, arg_idx: i128) -> Argument {
-        let v = *self.get(self.ip + 1 + arg_idx);
-        let arg = self.address(mode, v);
-        arg
-    }
-
-    fn address(&mut self, mode: AddrMode, value: i128) -> Argument {
-        match mode {
-            AddrMode::Position => Argument {
-                src: Some(value),
-                v: *self.get(value),
-            },
-            AddrMode::Direct => Argument {
-                src: None,
-                v: value,
-            },
-            AddrMode::Relative => Argument {
-                src: Some(self.base + value),
-                v: *self.get(value),
-            }
-        }
+        Some(Argument {
+            reference: Some(get!(idx)),
+            value: val,
+        })
     }
 
     fn execute<'a>(&'a mut self, instr: &Instruction) {
+        macro_rules! addr {
+            ( $arg:expr ) => {{
+                let arg = match $arg() {
+                    Some(arg) => arg,
+                    None => return,
+                };
+                match arg.reference() {
+                    Some(reference) => reference,
+                    None => {
+                        self.state = State::Error(IntcodeErr::WriteDirect);
+                        return;
+                    }
+                }
+            }};
+        }
+
         let mut argv = Vec::with_capacity(instr.num_args as usize);
         for i in 0..instr.num_args {
             let i = i as usize;
-            argv.push(self.arg(instr.addr_modes[i], i as i128));
+            argv.push(|| self.arg(instr.addr_modes[i], i as Int));
         }
 
         self.state = State::Running;
         match instr.op {
-            Opcode::Add => self.write_arg(&argv[2], argv[0].v + argv[1].v),
-            Opcode::Mul => self.write_arg(&argv[2], argv[0].v * argv[1].v),
+            Opcode::Add => *addr!(argv[2]) = *argv[0] + *argv[1],
+            Opcode::Mul => *addr!(argv[2]) = *argv[0] * *argv[1],
 
             Opcode::Inp => match self.next_in {
                 Some(input) => {
-                    self.write_arg(&argv[0], input);
+                    *addr!(argv[0]) = input;
                     self.next_in = None;
                     self.state = State::Running;
                 }
                 None => self.state = State::Waiting,
             },
 
-            Opcode::Out => self.state = State::Output(argv[0].v),
+            Opcode::Out => self.state = State::Output(*argv[0]),
             Opcode::Hlt => self.state = State::Halted,
 
             Opcode::Jit => {
-                if argv[0].v != 0 {
-                    self.ip = argv[1].v - instr.num_args - 1
+                if *argv[0] != 0 {
+                    self.ip = *argv[1] - instr.num_args - 1
                 }
             }
             Opcode::Jif => {
-                if argv[0].v == 0 {
-                    self.ip = argv[1].v - instr.num_args - 1
+                if *argv[0] == 0 {
+                    self.ip = *argv[1] - instr.num_args - 1
                 }
             }
 
-            Opcode::Clt => self.write_arg(&argv[2], (argv[0].v < argv[1].v) as i128),
-            Opcode::Ceq => self.write_arg(&argv[2], (argv[0].v == argv[1].v) as i128),
+            Opcode::Clt => *addr!(argv[2]) = (*argv[0] < *argv[1]) as Int,
+            Opcode::Ceq => *addr!(argv[2]) = (*argv[0] == *argv[1]) as Int,
 
-            Opcode::Arb => self.base += argv[0].v,
+            Opcode::Arb => self.base += *argv[0],
         }
     }
 }
