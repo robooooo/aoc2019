@@ -1,9 +1,10 @@
 use crate::{
-    intcode::{self, error::IntcodeErr, interpreter::Int},
+    intcode::{error::IntcodeErr, interpreter::Int},
     utils::digits,
 };
 use std::{ops::Deref, usize};
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct Instruction {
     pub(super) addr_modes: Vec<AddrMode>,
     pub(super) num_args: Int,
@@ -15,7 +16,7 @@ impl Instruction {
         let op_num = n % 100;
         let op = match Opcode::maybe_new(op_num) {
             Some(op) => op,
-            None => return Err(IntcodeErr::UnknownInstruction),
+            None => return Err(IntcodeErr::UnknownInstruction(op_num)),
         };
         let rem = (n - op_num) / 100;
         let digits: Vec<_> = digits(rem as i32).into_iter().rev().collect();
@@ -52,7 +53,7 @@ impl Instruction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(super) enum Opcode {
     Add = 1,
     Mul = 2,
@@ -109,15 +110,16 @@ impl AddrMode {
 
 #[derive(Debug, Eq, PartialEq)]
 pub(super) struct Argument<'a> {
-    reference: Option<&'a mut Int>,
+    pub(super) reference: Option<&'a mut Int>,
     value: Int,
 }
 
 impl<'a> Argument<'a> {
     pub fn new(addr: &'a mut Int) -> Self {
+        let v = *addr;
         Argument {
             reference: Some(addr),
-            value: *addr,
+            value: v,
         }
     }
 
@@ -128,13 +130,13 @@ impl<'a> Argument<'a> {
         }
     }
 
-    pub fn reference(&self) -> Option<&'a mut Int> {
+    pub fn reference(self) -> Option<&'a mut Int> {
         self.reference
     }
 
-    pub fn value(&self) -> Int {
-        self.value
-    }
+    // pub fn value(&self) -> Int {
+    //     self.value
+    // }
 }
 
 impl<'a> Deref for Argument<'a> {

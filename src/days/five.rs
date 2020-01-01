@@ -13,7 +13,8 @@ pub fn first() -> utils::Result<String> {
             State::Running => continue,
             State::Output(out) => res.push_str(&format!("{} ", out)),
             State::Waiting => cpu.input(1),
-            _ => break,
+            State::Error(e) => Err(e)?,
+            State::Halted => break,
         }
     }
 

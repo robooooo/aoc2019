@@ -1,4 +1,5 @@
 use err_derive::Error;
+use crate::intcode::{structs::Instruction, Int};
 
 #[derive(Copy, Clone, Debug, Error, Eq, PartialEq)]
 pub enum IntcodeErr {
@@ -7,7 +8,7 @@ pub enum IntcodeErr {
     #[error(display = "Attempted to access a negative address")]
     NegativeAccess,
     #[error(display = "Unknown instruction")]
-    UnknownInstruction,
+    UnknownInstruction(Int),
     #[error(display = "Unknown addressing mode")]
     UnknownMode,
     #[error(display = "An eval- function ran out of arguments")]

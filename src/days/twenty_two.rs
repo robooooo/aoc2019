@@ -4,7 +4,7 @@ use crate::{
 };
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::{ops::Range, str::FromStr};
+use std::str::FromStr;
 
 lazy_static! {
     static ref DEAL_NEW: Regex = Regex::new(r"^deal into new stack$").unwrap();
@@ -70,7 +70,7 @@ pub fn first() -> utils::Result<usize> {
 }
 
 pub fn second() -> utils::Result<usize> {
-    let input: Vec<Technique> = utils::get_lines(utils::path("twenty_two.txt"))?;
+    // let input: Vec<Technique> = utils::get_lines(utils::path("twenty_two.txt"))?;
 
     Ok(0)
 }

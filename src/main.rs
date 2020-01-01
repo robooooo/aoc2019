@@ -10,8 +10,8 @@ fn main() -> utils::Result<()> {
 
     let first = day::first()?;
     println!("{}", first);
-    // let second = day::second()?;
-    // println!("{}", second);
+    let second = day::second()?;
+    println!("{}", second);
 
     Ok(())
 }   

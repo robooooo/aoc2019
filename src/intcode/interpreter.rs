@@ -1,10 +1,18 @@
-#[macro_use]
 use crate::{
     intcode::{error::IntcodeErr, structs::*},
 };
 use std::{i128, iter, usize};
 
 pub type Int = i128;
+
+macro_rules! try_opt {
+    ($ex:expr) => {
+        match $ex {
+            Some(e) => e,
+            None => return None,
+        }
+    }
+}
 
 /// Fully evaluate the intcode instance `ic` to completion
 /// Stops with an `Err(IntcodeErr::EvalNoArgs)` when it can't provide an argument
@@ -121,7 +129,7 @@ impl Intcode {
         assert!(addr <= usize::MAX as Int);
         let addr = addr as usize;
 
-        if len < addr {
+        if len <= addr {
             self.mem.extend(iter::repeat(0).take(addr - len + 1));
         }
 
@@ -135,37 +143,20 @@ impl Intcode {
     }
 
     fn arg(&mut self, mode: AddrMode, idx: Int) -> Option<Argument> {
-        macro_rules! get {
-            ( $arg:expr ) => {
-                match self.get($arg) {
-                    Some(arg) => arg,
-                    None => return None,
-                }
-            };
-        }
-
+        let param = *try_opt!(self.get(self.ip + idx + 1));
         let idx = match mode {
-            AddrMode::Position => idx,
-            AddrMode::Relative => self.base + idx,
-            AddrMode::Direct => {
-                return Some(Argument {
-                    reference: None,
-                    value: idx,
-                })
-            }
+            AddrMode::Position => param,
+            AddrMode::Relative => self.base + param,
+            AddrMode::Direct => return Some(Argument::with_value(param)),
         };
-        let val = *get!(idx);
-
-        Some(Argument {
-            reference: Some(get!(idx)),
-            value: val,
-        })
+        self.get(idx).map(Argument::new)
     }
 
     fn execute<'a>(&'a mut self, instr: &Instruction) {
         macro_rules! addr {
             ( $arg:expr ) => {{
-                let arg = match $arg() {
+                let i = $arg as usize;
+                let arg = match self.arg(instr.addr_modes[i], i as Int) {
                     Some(arg) => arg,
                     None => return,
                 };
@@ -179,44 +170,51 @@ impl Intcode {
             }};
         }
 
-        let mut argv = Vec::with_capacity(instr.num_args as usize);
-        for i in 0..instr.num_args {
-            let i = i as usize;
-            argv.push(|| self.arg(instr.addr_modes[i], i as Int));
+        macro_rules! arg {
+            ( $arg:expr ) => {{
+                let i = $arg as usize;
+                match self.arg(instr.addr_modes[i], i as Int) {
+                    Some(v) => *v,
+                    None => {
+                        self.state = State::Error(IntcodeErr::WriteDirect);
+                        return;
+                    }
+                }
+            }};
         }
 
         self.state = State::Running;
         match instr.op {
-            Opcode::Add => *addr!(argv[2]) = *argv[0] + *argv[1],
-            Opcode::Mul => *addr!(argv[2]) = *argv[0] * *argv[1],
+            Opcode::Add => *addr!(2) = arg!(0) + arg!(1),
+            Opcode::Mul => *addr!(2) = arg!(0) * arg!(1),
 
             Opcode::Inp => match self.next_in {
                 Some(input) => {
-                    *addr!(argv[0]) = input;
+                    *addr!(0) = input;
                     self.next_in = None;
                     self.state = State::Running;
                 }
                 None => self.state = State::Waiting,
             },
 
-            Opcode::Out => self.state = State::Output(*argv[0]),
+            Opcode::Out => self.state = State::Output(arg!(0)),
             Opcode::Hlt => self.state = State::Halted,
 
             Opcode::Jit => {
-                if *argv[0] != 0 {
-                    self.ip = *argv[1] - instr.num_args - 1
+                if arg!(0) != 0 {
+                    self.ip = arg!(1) - instr.num_args - 1
                 }
             }
             Opcode::Jif => {
-                if *argv[0] == 0 {
-                    self.ip = *argv[1] - instr.num_args - 1
+                if arg!(0) == 0 {
+                    self.ip = arg!(1) - instr.num_args - 1
                 }
             }
 
-            Opcode::Clt => *addr!(argv[2]) = (*argv[0] < *argv[1]) as Int,
-            Opcode::Ceq => *addr!(argv[2]) = (*argv[0] == *argv[1]) as Int,
+            Opcode::Clt => *addr!(2) = (arg!(0) < arg!(1)) as Int,
+            Opcode::Ceq => *addr!(2) = (arg!(0) == arg!(1)) as Int,
 
-            Opcode::Arb => self.base += *argv[0],
+            Opcode::Arb => self.base += arg!(0),
         }
     }
 }
