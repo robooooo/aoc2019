@@ -1,5 +1,6 @@
 use err_derive::Error;
 use std::num::ParseIntError;
+use crate::intcode::error::IntcodeErr;
 
 #[derive(Error, Debug)]
 pub enum TwoError {
@@ -34,6 +35,22 @@ pub enum EightError {
     #[error(display = "Unexpected digit encountered in input")]
     UnexpectedDigit,
 }
+
+#[derive(Error, Debug)]
+pub enum ElevenError {
+    #[error(display = "Output ({}) was not a valid tile", _0)]
+    InvalidTile(i128),
+    #[error(display = "Output ({}) was not a valid turn", _0)]
+    InvalidTurn(i128),
+    #[error(display = "Error with brain: {}", _0)]
+    InterpreterError(IntcodeErr),
+}
+
+// impl From<i128> for ElevenError {
+//     fn from(e: i128) -> Self {
+//         ElevenError::InvalidTile(e)
+//     }
+// }
 
 #[derive(Error, Debug)]
 pub enum TwentyTwoFromStrErr {

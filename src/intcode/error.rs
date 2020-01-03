@@ -1,5 +1,5 @@
+use crate::intcode::Int;
 use err_derive::Error;
-use crate::intcode::{structs::Instruction, Int};
 
 #[derive(Copy, Clone, Debug, Error, Eq, PartialEq)]
 pub enum IntcodeErr {
@@ -14,4 +14,3 @@ pub enum IntcodeErr {
     #[error(display = "An eval- function ran out of arguments")]
     EvalNoArgs,
 }
-

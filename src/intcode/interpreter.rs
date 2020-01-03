@@ -139,7 +139,7 @@ impl Intcode {
                 self.state = State::Error(IntcodeErr::NegativeAccess);
                 None
             }
-        }
+        } 
     }
 
     fn arg(&mut self, mode: AddrMode, idx: Int) -> Option<Argument> {
