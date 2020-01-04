@@ -2,8 +2,9 @@ pub mod days;
 pub mod error;
 pub mod utils;
 pub mod intcode;
+pub mod display;
 
-use days::eleven as day;
+use days::thirteen as day;
 
 fn main() -> utils::Result<()> {
     let first = day::first()?;

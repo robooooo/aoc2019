@@ -53,6 +53,12 @@ pub enum ElevenError {
 // }
 
 #[derive(Error, Debug)]
+pub enum ThirteenError {
+    #[error(display = "Output ({}) was not a valid tile", _0)]
+    InvalidTile(i128),
+}
+
+#[derive(Error, Debug)]
 pub enum TwentyTwoFromStrErr {
     #[error(display = "Invalid technique")]
     InvalidTechnique,
