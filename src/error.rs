@@ -59,6 +59,16 @@ pub enum ThirteenError {
 }
 
 #[derive(Error, Debug)]
+pub enum FifteenError {
+    #[error(display = "Output ({}) was not a valid direction", _0)]
+    InvalidDirection(i128),
+    #[error(display = "Output ({}) was not a valid status", _0)]
+    InvalidStatus(i128),
+    #[error(display = "Process was manually quit")]
+    Terminated,
+}
+
+#[derive(Error, Debug)]
 pub enum TwentyTwoFromStrErr {
     #[error(display = "Invalid technique")]
     InvalidTechnique,
