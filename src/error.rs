@@ -1,5 +1,6 @@
 use err_derive::Error;
 use std::num::ParseIntError;
+use crate::intcode::error::IntcodeErr;
 
 #[derive(Error, Debug)]
 pub enum TwoError {
@@ -32,5 +33,57 @@ pub enum EightError {
     #[error(display = "No solutions found")]
     NoSolutions,
     #[error(display = "Unexpected digit encountered in input")]
-    UnexpectedDigit
+    UnexpectedDigit,
+}
+
+#[derive(Error, Debug)]
+pub enum ElevenError {
+    #[error(display = "Output ({}) was not a valid tile", _0)]
+    InvalidTile(i128),
+    #[error(display = "Output ({}) was not a valid turn", _0)]
+    InvalidTurn(i128),
+    #[error(display = "Error with brain: {}", _0)]
+    InterpreterError(IntcodeErr),
+}
+
+// impl From<i128> for ElevenError {
+//     fn from(e: i128) -> Self {
+//         ElevenError::InvalidTile(e)
+//     }
+// }
+
+#[derive(Error, Debug)]
+pub enum ThirteenError {
+    #[error(display = "Output ({}) was not a valid tile", _0)]
+    InvalidTile(i128),
+}
+
+#[derive(Error, Debug)]
+pub enum TwentyTwoFromStrErr {
+    #[error(display = "Invalid technique")]
+    InvalidTechnique,
+    #[error(display = "Range error")]
+    RangeError,
+    #[error(display = "Parse error: {:?}", _0)]
+    ParseError(ParseIntError),
+}
+
+impl From<ParseIntError> for TwentyTwoFromStrErr {
+    fn from(e: ParseIntError) -> Self {
+        TwentyTwoFromStrErr::ParseError(e)
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum TwentyTwoError {
+    #[error(display = "No solutions")]
+    NoSolutions,
+    #[error(display = "Parse error: {:?}", _0)]
+    ParseError(TwentyTwoFromStrErr),
+}
+
+#[derive(Error, Debug)]
+pub enum TwentyFourError {
+    #[error(display = "Pattern did not match a cell")]
+    ParseError,
 }

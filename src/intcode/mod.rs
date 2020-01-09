@@ -4,4 +4,4 @@ pub mod input;
 pub mod error;
 mod structs;
 
-pub use interpreter::{Intcode, eval, eval_args};
+pub use interpreter::{Intcode, eval, Int};
