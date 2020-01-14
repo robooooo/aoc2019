@@ -25,6 +25,7 @@ pub enum State {
     Error(IntcodeErr),
 }
 
+#[derive(Clone)]
 pub struct Intcode {
     mem: Vec<Int>,
     ip: Int,

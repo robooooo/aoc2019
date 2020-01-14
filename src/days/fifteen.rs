@@ -1,69 +1,54 @@
 use crate::{
-    display::PixBuf,
-    error::FifteenError,
     inp,
-    intcode::{Int, Intcode},
-    out_or, utils,
+    intcode::{error::IntcodeErr, Int, Intcode},
+    out, utils,
 };
-use crossterm::{
-    event::{self, Event, KeyCode},
-    style::Color,
-};
-use num::{FromPrimitive};
+use num::FromPrimitive;
 use num_derive::{FromPrimitive, ToPrimitive};
-use std::io::stdout;
+use std::collections::{HashSet, VecDeque};
 
-const SIZE: i32 = 64;
-
-pub fn first() -> utils::Result<i32> {
+pub fn first() -> utils::Result<usize> {
     let input = utils::get_split(",", utils::path("fifteen.txt"))?;
-    let mut display = PixBuf::<std::io::Stdout>::new(stdout())?;
-    let mut cpu = Intcode::new(input);
-    let (mut x, mut y) = (0, 0);
+    let mut queue = VecDeque::new();
+    queue.push_back(VecDeque::new());
+    let cpu = Intcode::new(input);
+    let mut set = HashSet::new();
 
-    display.fill(0, 0, SIZE as u16, SIZE as u16, Color::Black)?;
-
-    loop {
-        let mov = loop {
-            let event = match event::read()? {
-                Event::Key(e) => e,
-                _ => continue,
-            };
-
-            break match event.code {
-                KeyCode::Up => Direction::South,
-                KeyCode::Down => Direction::North,
-                KeyCode::Left => Direction::West,
-                KeyCode::Right => Direction::East,
-                KeyCode::Char('q') => Err(FifteenError::Terminated)?,
-                _ => continue,
-            };
-        };
-        let (dx, dy) = mov.into();
-
-        inp!(cpu, mov as Int);
-        let status = out_or!(cpu);
-        let status = Status::from_i128(status).ok_or(FifteenError::InvalidStatus(status))?;
-
-        match status {
-            Status::Wall => display.show((SIZE / 2 + x + dx) as u16, (SIZE / 2 + y + dy) as u16, Color::White)?,
+    while let Some(attempt) = queue.pop_front() {
+        // dbg!(&attempt);
+        match try_input(&mut cpu.clone(), &attempt)? {
             Status::Moved => {
-                display.show((SIZE / 2 + x) as u16, (SIZE / 2 + y) as u16, Color::Black)?;
-                display.show((SIZE / 2 + x + dx) as u16, (SIZE / 2 + y + dy) as u16, Color::Red)?;
-                x += dx;
-                y += dy;
+                use Direction::*;
+                for &dir in &[North, East, South, West] {
+                    let mut at = attempt.clone();
+                    at.push_back(dir);
+                    if !set.contains(&at) {
+                        queue.push_back(at);
+                    } else {
+                        set.insert(at);
+                    }
+                }
             }
-            Status::MovedOxygen => {
-                display.show((SIZE / 2 + x) as u16, (SIZE / 2 + y) as u16, Color::Black)?;
-                display.show((SIZE / 2 + x + dx) as u16, (SIZE / 2 + y + dy) as u16, Color::Blue)?;
-            }
+            Status::MovedOxygen => return Ok(attempt.len()),
+            Status::Wall => continue,
         }
     }
 
     Ok(0)
 }
 
-#[derive(Copy, Clone, FromPrimitive, ToPrimitive)]
+fn try_input(cpu: &mut Intcode, instrs: &VecDeque<Direction>) -> utils::Result<Status> {
+    let mut last = Some(Status::Moved as Int);
+    for &mov in instrs.iter() {
+        inp!(cpu, mov as Int);
+        last = out!(cpu);
+    }
+    last.and_then(Status::from_i128)
+        .ok_or(IntcodeErr::EvalNoArgs)
+        .map_err(Into::into)
+}
+
+#[derive(Copy, Clone, Eq, Debug, Hash, FromPrimitive, ToPrimitive, PartialEq)]
 enum Direction {
     North = 1,
     South = 2,
@@ -82,7 +67,7 @@ impl From<Direction> for (i32, i32) {
     }
 }
 
-#[derive(Copy, Clone, FromPrimitive, ToPrimitive)]
+#[derive(Copy, Clone, Debug, FromPrimitive, ToPrimitive)]
 enum Status {
     Wall = 0,
     Moved = 1,
